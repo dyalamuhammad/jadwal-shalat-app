@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jadwal Shalat Jakarta</title>
+  <link rel="icon" href="data:,">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'media',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Poppins', 'system-ui', 'sans-serif'] },
+          colors: { accent: '#4f46e5' }
+        }
+      }
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="font-sans bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex justify-center transition-colors">
+  <main class="w-full max-w-3xl px-4 pt-6 pb-8 flex flex-col gap-5 sm:pt-10 sm:gap-6">
+
+    <!-- Header -->
+    <header class="text-center flex flex-col gap-1">
+      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">Jadwal Shalat</h1>
+      <p class="text-indigo-600 dark:text-indigo-400 font-medium text-sm sm:text-base">Jakarta, Indonesia</p>
+      <div class="mt-2 flex flex-col gap-0.5" id="dates">
+        <span class="text-xs sm:text-sm text-slate-500 dark:text-slate-400" id="dateMasehi">Memuat tanggal…</span>
+        <span class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 italic" id="dateHijri"></span>
+      </div>
+    </header>
+
+    <!-- Loading -->
+    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm p-8 flex flex-col items-center gap-3 text-slate-500 dark:text-slate-400" id="loading">
+      <div class="w-9 h-9 rounded-full border-[3px] border-slate-200 dark:border-slate-700 border-t-indigo-600 dark:border-t-indigo-400 animate-spin"></div>
+      <p class="text-sm">Mengambil jadwal shalat…</p>
+    </div>
+
+    <!-- Error -->
+    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm p-8 flex flex-col items-center gap-3 text-center" id="error" hidden>
+      <p class="text-3xl">⚠️</p>
+      <p class="text-red-600 dark:text-red-400 font-medium text-sm" id="errorMessage">Gagal memuat jadwal shalat. Periksa koneksi internet Anda.</p>
+      <button class="text-sm font-semibold bg-indigo-600 text-white rounded-lg px-5 py-2.5 hover:opacity-90 active:scale-95 transition" id="retryBtn" type="button">Coba Lagi</button>
+    </div>
+
+    <!-- Countdown -->
+    <section class="bg-indigo-600 text-white rounded-2xl p-5 text-center shadow-lg shadow-indigo-500/25 flex flex-col gap-1" id="countdownSection" hidden>
+      <p class="text-sm opacity-90">Menuju <strong id="nextName">—</strong></p>
+      <p class="text-3xl sm:text-4xl font-bold tabular-nums tracking-wider" id="countdownTimer">--:--:--</p>
+    </section>
+
+    <!-- Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3" id="cards" hidden aria-label="Waktu shalat"></section>
+
+    <footer class="text-center text-xs text-slate-400 dark:text-slate-500 mt-2">
+      <p>Sumber data: AlAdhan API</p>
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
