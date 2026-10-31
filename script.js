@@ -247,3 +247,13 @@ document.addEventListener("visibilitychange", () => {
 });
 
 fetchPrayerTimes();
+
+// Daftarkan Service Worker (hanya jika browser mendukung)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./sw.js")
+      .then((reg) => console.log("SW terdaftar:", reg.scope))
+      .catch((err) => console.error("SW gagal:", err));
+  });
+}
