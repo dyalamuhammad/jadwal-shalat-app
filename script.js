@@ -6,7 +6,7 @@ const API_URL =
 
 // Daftar shalat: key dari API -> nama Indonesia
 const PRAYERS = [
-  { key: "Fajr", name: "Subuh" },
+  { key: "Fajr", name: "Shubuh" },
   { key: "Dhuhr", name: "Dzuhur" },
   { key: "Asr", name: "Ashar" },
   { key: "Maghrib", name: "Maghrib" },
@@ -128,7 +128,7 @@ function determineNextPrayer() {
     }
   }
 
-  // Semua sudah lewat -> Subuh besok
+  // Semua sudah lewat -> Shubuh besok
   nextPrayerIndex = 0;
   nextPrayerDate = toDate(prayerTimes[0].time, 1);
 }
@@ -280,6 +280,18 @@ function urlBase64ToUint8Array(base64String) {
 const notifBtn = document.getElementById("notifBtn");
 const notifStatus = document.getElementById("notifStatus");
 
+function setNotifState(state) {
+  const labels = {
+    default: "Aktifkan notifikasi",
+    on: "Notifikasi aktif",
+    off: "Notifikasi diblokir di pengaturan browser",
+  };
+  notifBtn.dataset.state = state;
+  notifBtn.title = labels[state];
+  notifBtn.setAttribute("aria-label", labels[state]);
+  notifBtn.disabled = state !== "default";
+}
+
 // Deteksi dukungan push
 const pushSupported =
   "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
@@ -291,9 +303,9 @@ if (!pushSupported) {
 
   // Cek status izin saat ini
   if (Notification.permission === "granted") {
-    notifStatus.textContent = "Notifikasi sudah aktif ✅";
-    notifBtn.hidden = true;
+    setNotifState("on")
   } else if (Notification.permission === "denied") {
+    setNotifState("off")
     notifStatus.textContent = "Notifikasi diblokir. Ubah di pengaturan browser.";
     notifBtn.hidden = true;
   }
@@ -340,4 +352,22 @@ notifBtn?.addEventListener("click", async () => {
     notifStatus.textContent = "Gagal mengaktifkan notifikasi. Coba lagi.";
     notifBtn.disabled = false;
   }
+});
+
+// BANNER IOS
+
+const iosBanner = document.getElementById("iosBanner");
+const iosBannerClose = document.getElementById("iosBannerClose");
+
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.navigator.standalone === true;
+
+// Tampil selalu selama dibuka via Safari (bukan dari layar utama)
+if (isIOS && !isStandalone) {
+  iosBanner.hidden = false;
+}
+
+// Tutup hanya untuk sesi ini
+iosBannerClose.addEventListener("click", () => {
+  iosBanner.hidden = true;
 });

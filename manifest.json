@@ -1,6 +1,6 @@
 {
   "name": "Jadwal Shalat Jakarta",
-  "short_name": "Jadwal Shalat",
+  "short_name": "ShalatYuk",
   "description": "Jadwal shalat 5 waktu untuk Jakarta",
   "start_url": "./",
   "scope": "./",

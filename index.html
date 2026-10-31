@@ -65,8 +65,12 @@
     <!-- Cards -->
     <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3" id="cards" hidden aria-label="Waktu shalat"></section>
 
-    <button id="notifBtn" class="btn" type="button" hidden>
-      🔔 Aktifkan Notifikasi
+    <button id="notifBtn" class="notif" type="button" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+      </svg>
     </button>
     <p id="notifStatus" class="notif-status"></p>
 
@@ -75,6 +79,17 @@
     </footer>
   </main>
 
+  <div id="iosBanner" class="ios-banner" hidden>
+  <p>
+    Pasang di layar utama: ketuk
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 3v12M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>
+    </svg>
+    lalu <strong>Tambah ke Layar Utama</strong>
+  </p>
+  <button id="iosBannerClose" type="button" aria-label="Tutup">✕</button>
+</div>
   <script src="script.js"></script>
 </body>
 </html>

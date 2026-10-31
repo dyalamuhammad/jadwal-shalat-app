@@ -1,8 +1,15 @@
 [hidden] { display: none !important; }
 
-#notifBtn {
-  width: 100%;
-  margin-top: 4px;
+/* NOTIF BUTTON & STATUS */
+
+.notif {
+  position: absolute; top: 0; right: 0;
+  width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: transparent; color: #64748b;
+  cursor: pointer; transition: all 0.2s;
+  margin: 10px;
 }
 
 .notif-status {
@@ -10,4 +17,30 @@
   font-size: 0.8rem;
   color: var(--text-muted);
   min-height: 1em;
+}
+
+.notif:hover:not(:disabled) { color: #4f46e5; border-color: #4f46e5; }
+.notif[data-state="on"] { color: #fff; background: #4f46e5; border-color: #4f46e5; opacity: 1; }
+.notif[data-state="off"] { opacity: 0.4; cursor: not-allowed; }
+
+/* banner IOS */
+
+.ios-banner {
+  position: fixed; left: 12px; right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; border-radius: 16px;
+  background: #fff; color: #1e293b;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-size: 13px; z-index: 50;
+}
+.ios-banner p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0; }
+.ios-banner svg { color: #4f46e5; }
+.ios-banner button {
+  border: 0; background: transparent; color: #64748b;
+  font-size: 16px; cursor: pointer; padding: 4px;
+}
+@media (prefers-color-scheme: dark) {
+  .ios-banner { background: #1e293b; color: #f1f5f9; }
 }
