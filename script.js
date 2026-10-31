@@ -257,3 +257,87 @@ if ("serviceWorker" in navigator) {
       .catch((err) => console.error("SW gagal:", err));
   });
 }
+
+// =====================
+// Push Notification: Subscribe
+// =====================
+
+// Ganti dengan Public Key VAPID Anda (dari Step 1)
+const VAPID_PUBLIC_KEY = "BLs9LK-aoISs6Wxkb3MlvhLjd89pdgU1xlu9VDE8y4OLCTavYdvI47jyBbo9TVUOv6Ua4IGMCRlv_Nl-HDNNJak";
+
+// Konversi base64 VAPID key ke Uint8Array (wajib untuk subscribe)
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+const notifBtn = document.getElementById("notifBtn");
+const notifStatus = document.getElementById("notifStatus");
+
+// Deteksi dukungan push
+const pushSupported =
+  "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+
+if (!pushSupported) {
+  if (notifStatus) notifStatus.textContent = "Browser ini tidak mendukung notifikasi push.";
+} else {
+  notifBtn.hidden = false;
+
+  // Cek status izin saat ini
+  if (Notification.permission === "granted") {
+    notifStatus.textContent = "Notifikasi sudah aktif ✅";
+    notifBtn.hidden = true;
+  } else if (Notification.permission === "denied") {
+    notifStatus.textContent = "Notifikasi diblokir. Ubah di pengaturan browser.";
+    notifBtn.hidden = true;
+  }
+}
+
+// Klik tombol -> minta izin -> subscribe -> kirim ke backend
+notifBtn?.addEventListener("click", async () => {
+  try {
+    notifBtn.disabled = true;
+    notifStatus.textContent = "Meminta izin…";
+
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      notifStatus.textContent = "Izin notifikasi ditolak.";
+      notifBtn.disabled = false;
+      return;
+    }
+
+    notifStatus.textContent = "Mendaftarkan perangkat…";
+
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+
+    // Kirim subscription ke backend (endpoint dibuat di step berikutnya)
+    const res = await fetch("/api/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(sub),
+    });
+
+    if (!res.ok) throw new Error("Server menolak subscription");
+
+    notifStatus.textContent = "Notifikasi berhasil diaktifkan ✅";
+    notifBtn.hidden = true;
+  } catch (err) {
+    console.error("Gagal subscribe:", err);
+    notifStatus.textContent = "Gagal mengaktifkan notifikasi. Coba lagi.";
+    notifBtn.disabled = false;
+  }
+});

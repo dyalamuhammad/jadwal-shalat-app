@@ -24,9 +24,7 @@
     };
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    [hidden] { display: none !important; }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body class="font-sans bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex justify-center transition-colors">
   <main class="w-full max-w-3xl px-4 pt-6 pb-8 flex flex-col gap-5 sm:pt-10 sm:gap-6">
@@ -62,6 +60,11 @@
 
     <!-- Cards -->
     <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3" id="cards" hidden aria-label="Waktu shalat"></section>
+
+    <button id="notifBtn" class="btn" type="button" hidden>
+      🔔 Aktifkan Notifikasi
+    </button>
+    <p id="notifStatus" class="notif-status"></p>
 
     <footer class="text-center text-xs text-slate-400 dark:text-slate-500 mt-2">
       <p>Sumber data: AlAdhan API</p>
