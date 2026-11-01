@@ -30,6 +30,23 @@ const el = {
   cards: document.getElementById("cards"),
 };
 
+const LOC_KEY = "shalat_loc";
+
+function saveLocation(loc) {
+  try { localStorage.setItem(LOC_KEY, JSON.stringify(loc)); } catch {}
+}
+
+function loadLocation() {
+  try {
+    const raw = localStorage.getItem(LOC_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function clearLocation() {
+  try { localStorage.removeItem(LOC_KEY); } catch {}
+}
+
 // State global
 let prayerTimes = []; // [{ key, name, time: "HH:MM" }]
 let nextPrayerIndex = -1; // index di prayerTimes
@@ -257,16 +274,17 @@ function initGeolocation() {
       (pos) => {
         const { latitude, longitude } = pos.coords;
         el.cityLabel.textContent = "Mendeteksi kota…";
-        console.log(`Lat ${latitude.toFixed(3)}, Lon ${longitude.toFixed(3)}`)
+        el.locStatus.textContent = "";
         el.locBtn.hidden = true;
-        el.locStatus.hidden = true;
-
-        // Ambil nama kota (tidak blocking jadwal shalat)
-        reverseGeocode(latitude, longitude).then((name) => {
-          el.cityLabel.textContent = name;
-        });
 
         fetchPrayerTimes({ type: "coords", lat: latitude, lon: longitude });
+
+        reverseGeocode(latitude, longitude).then((name) => {
+          el.cityLabel.textContent = name;
+          // Simpan lokasi + nama kota
+          saveLocation({ lat: latitude, lon: longitude, name });
+        });
+        
       },
       (err) => {
         el.locBtn.disabled = false;
@@ -283,7 +301,16 @@ function initGeolocation() {
   });
 }
 
-initGeolocation();
+function restoreLocation() {
+  const loc = loadLocation();
+  if (!loc || !loc.lat || !loc.lon) return false;
+
+  el.cityLabel.textContent = loc.name || "Lokasi tersimpan";
+  el.locBtn.hidden = true;
+  fetchPrayerTimes({ type: "coords", lat: loc.lat, lon: loc.lon });
+  return true;
+}
+
 
 // =====================
 // Reverse geocoding (koordinat -> nama kota)
@@ -334,7 +361,12 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-fetchPrayerTimes();
+initGeolocation();
+
+// Jika ada lokasi tersimpan, pakai itu. Jika tidak, default Jakarta.
+if (!restoreLocation()) {
+  fetchPrayerTimes();
+}
 
 // Daftarkan Service Worker (hanya jika browser mendukung)
 if ("serviceWorker" in navigator) {
