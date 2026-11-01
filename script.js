@@ -257,9 +257,9 @@ function initGeolocation() {
       (pos) => {
         const { latitude, longitude } = pos.coords;
         el.cityLabel.textContent = "Mendeteksi kota…";
-        el.locStatus.textContent =
-          `Lat ${latitude.toFixed(3)}, Lon ${longitude.toFixed(3)}`;
+        console.log(`Lat ${latitude.toFixed(3)}, Lon ${longitude.toFixed(3)}`)
         el.locBtn.hidden = true;
+        el.locStatus.hidden = true;
 
         // Ambil nama kota (tidak blocking jadwal shalat)
         reverseGeocode(latitude, longitude).then((name) => {
