@@ -24,6 +24,9 @@ const el = {
   countdownSection: document.getElementById("countdownSection"),
   nextName: document.getElementById("nextName"),
   countdownTimer: document.getElementById("countdownTimer"),
+  cityLabel: document.getElementById("cityLabel"),
+  locBtn: document.getElementById("locBtn"),
+  locStatus: document.getElementById("locStatus"),
   cards: document.getElementById("cards"),
 };
 
@@ -197,37 +200,122 @@ function showContent() {
 // Fetch data
 // =====================
 
-async function fetchPrayerTimes() {
+async function fetchPrayerTimes(loc = { type: "city", city: "Jakarta", country: "Indonesia" }) {
   showLoading();
   try {
-    const res = await fetch(API_URL);
+    let url;
+    if (loc.type === "coords") {
+      const d = new Date();
+      const dateStr =
+        String(d.getDate()).padStart(2, "0") + "-" +
+        String(d.getMonth() + 1).padStart(2, "0") + "-" +
+        d.getFullYear();
+      url = `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${loc.lat}&longitude=${loc.lon}&method=20`;
+    } else {
+      url = `https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(loc.city)}&country=${encodeURIComponent(loc.country)}&method=20`;
+    }
+
+    const res = await fetch(url);
     if (!res.ok) throw new Error("HTTP " + res.status);
 
     const json = await res.json();
-    const data = json && json.data;
-    const timings = data && data.timings;
+    const data = json?.data;
+    const timings = data?.timings;
     if (!timings) throw new Error("timings kosong");
 
     const clean = (t) => (t || "").split(" ")[0];
-
     prayerTimes = PRAYERS.map((p) => ({
       key: p.key,
       name: p.name,
       time: clean(timings[p.key]) || "--:--",
     }));
 
-    const readable = (data.date && data.date.readable) || "";
-    const hijri = (data.date && data.date.hijri) || null;
-    renderDates(readable, hijri);
-
+    renderDates(data?.date?.readable || "", data?.date?.hijri || null);
     renderCards();
     determineNextPrayer();
     highlightNextCard();
     startCountdown();
     showContent();
   } catch (err) {
-    console.error("DEBUG gagal:", err); // <-- lihat pesan ini di Console
-    showError("Gagal memuat jadwal: " + err.message);
+    console.error("Gagal fetch jadwal:", err);
+    showError("Maaf, jadwal shalat gagal dimuat. Periksa koneksi lalu coba lagi.");
+  }
+}
+
+// =====================
+// Deteksi lokasi (tampilan saja)
+// =====================
+function initGeolocation() {
+  if (!("geolocation" in navigator)) return;
+  if (el.locBtn) el.locBtn.hidden = false;
+
+  el.locBtn?.addEventListener("click", () => {
+    el.locBtn.disabled = true;
+    el.locStatus.textContent = "Mendeteksi lokasi…";
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        el.cityLabel.textContent = "Mendeteksi kota…";
+        el.locStatus.textContent =
+          `Lat ${latitude.toFixed(3)}, Lon ${longitude.toFixed(3)}`;
+        el.locBtn.hidden = true;
+
+        // Ambil nama kota (tidak blocking jadwal shalat)
+        reverseGeocode(latitude, longitude).then((name) => {
+          el.cityLabel.textContent = name;
+        });
+
+        fetchPrayerTimes({ type: "coords", lat: latitude, lon: longitude });
+      },
+      (err) => {
+        el.locBtn.disabled = false;
+        if (err.code === 1) {
+          el.locStatus.textContent = "Izin lokasi ditolak. Tetap pakai Jakarta.";
+        } else if (err.code === 3) {
+          el.locStatus.textContent = "Deteksi lokasi habis waktu. Coba lagi.";
+        } else {
+          el.locStatus.textContent = "Gagal mendeteksi lokasi.";
+        }
+      },
+      { timeout: 10000, maximumAge: 300000 }
+    );
+  });
+}
+
+initGeolocation();
+
+// =====================
+// Reverse geocoding (koordinat -> nama kota)
+// =====================
+async function reverseGeocode(lat, lon) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1&accept-language=id`;
+    const res = await fetch(url, {
+      headers: { "Accept": "application/json" },
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    const data = await res.json();
+    const a = data?.address || {};
+
+    // Urutan prioritas nama wilayah
+    const name =
+      a.city ||
+      a.town ||
+      a.municipality ||
+      a.county ||
+      a.village ||
+      a.suburb ||
+      a.state ||
+      "Lokasi Anda";
+
+    // Tambahkan provinsi kalau ada dan berbeda dari nama
+    const state = a.state || a.province || "";
+    return state && state !== name ? `${name}, ${state}` : name;
+  } catch (err) {
+    console.warn("Reverse geocode gagal:", err);
+    return "Lokasi Anda"; // fallback
   }
 }
 
