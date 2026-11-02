@@ -13,10 +13,18 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Subscription tidak valid" });
     }
 
-    // Simpan subscription dengan endpoint sebagai key unik
+    const sub = subscription;
+    const meta = {
+      subscription: sub,
+      lat: req.body.lat ?? null,
+      lon: req.body.lon ?? null,
+      tz: req.body.tz || "Asia/Jakarta",
+      city: req.body.city || "Jakarta",
+    };
+
     await redis.set(
-      `push:sub:${subscription.endpoint}`,
-      JSON.stringify(subscription)
+      `push:sub:${sub.endpoint}`,
+      JSON.stringify(meta)
     );
 
     return res.status(200).json({ ok: true });

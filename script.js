@@ -456,11 +456,19 @@ notifBtn?.addEventListener("click", async () => {
       });
     }
 
+    const savedLoc = loadLocation();
+
     // Kirim subscription ke backend (endpoint dibuat di step berikutnya)
     const res = await fetch("/api/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(sub),
+      body: JSON.stringify({
+      ...sub,                              // endpoint, keys, dll
+      lat: savedLoc?.lat ?? null,
+      lon: savedLoc?.lon ?? null,
+      city: savedLoc?.name ?? "Jakarta",
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Jakarta",
+    }),
     });
 
     if (!res.ok) throw new Error("Server menolak subscription");
