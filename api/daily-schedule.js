@@ -25,11 +25,18 @@ export default async function handler(req, res) {
     for (const key of keys) {
       const raw = await redis.get(key);
       if (!raw) continue;
-      const meta = typeof raw === "string" ? JSON.parse(raw) : raw;
+        const meta = typeof raw === "string" ? JSON.parse(raw) : raw;
 
-      const lat = meta.lat ?? -6.2088; // default Jakarta
-      const lon = meta.lon ?? 106.8456;
-      const cacheKey = `${lat.toFixed(3)},${lon.toFixed(3)}`;
+        // Dukung dua format: baru { subscription, lat, lon, tz } dan lama { endpoint, keys }
+        const sub = meta.subscription || meta;
+        if (!sub?.endpoint) {
+        console.warn("Skip key tanpa endpoint:", key);
+        continue;
+        }
+
+        const lat = meta.lat ?? -6.2088;
+        const lon = meta.lon ?? 106.8456;
+        const cacheKey = `${lat.toFixed(3)},${lon.toFixed(3)}`;
 
       let schedule = cache.get(cacheKey);
 
@@ -52,10 +59,10 @@ export default async function handler(req, res) {
       }
 
       await redis.set(
-        `push:sched:${meta.subscription.endpoint}`,
+        `push:sched:${sub.endpoint}`,
         JSON.stringify(schedule),
-        { ex: 86400 * 2 } // expire 2 hari
-      );
+        { ex: 86400 * 2 }
+    );
       updated++;
     }
 
