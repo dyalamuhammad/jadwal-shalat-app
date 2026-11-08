@@ -588,7 +588,7 @@ function buatHandlerOrientasi(isIOS) {
   return (e) => {
     let heading = null;
     if (isIOS && typeof e.webkitCompassHeading === "number") {
-      heading = e.webkitCompassHeading;
+  heading = e.webkitCompassHeading;
     } else if (typeof e.alpha === "number") {
       heading = 360 - e.alpha;
     }
@@ -627,6 +627,7 @@ async function mulaiKompas() {
       Math.round(bearingKiblat) + "° dari utara.";
     return;
   }
+
   try {
     if (typeof DeviceOrientationEvent.requestPermission === "function") {
       const izin = await DeviceOrientationEvent.requestPermission();
@@ -636,15 +637,44 @@ async function mulaiKompas() {
         return;
       }
     }
+
     const isIOS = typeof DeviceOrientationEvent.requestPermission === "function";
-    handlerOrientasi = buatHandlerOrientasi(isIOS);
-    window.addEventListener("deviceorientationabsolute", handlerOrientasi, true);
-    window.addEventListener("deviceorientation", handlerOrientasi, true);
+
+    // Watchdog: pastikan event benar-benar datang
+    let eventMasuk = false;
+    const wrappedHandler = (e) => {
+      eventMasuk = true;
+      buatHandlerOrientasi(isIOS)(e);
+    };
+
+    handlerOrientasi = wrappedHandler;
+
+    if (isIOS) {
+      window.addEventListener("deviceorientation", wrappedHandler, true);
+    } else {
+      window.addEventListener("deviceorientationabsolute", wrappedHandler, true);
+      window.addEventListener("deviceorientation", wrappedHandler, true);
+    }
+
     kompasAktif = true;
     if (el.compassBtn) el.compassBtn.textContent = "Matikan Kompas";
     if (el.qiblatAligned) el.qiblatAligned.textContent = "";
+
+    // Cek setelah 1.5 detik: jika tidak ada event, matikan lagi
+    setTimeout(() => {
+      if (!eventMasuk && kompasAktif) {
+        hentikanKompas();
+        if (el.qiblatAligned) el.qiblatAligned.textContent =
+          "Sensor kompas tidak merespons. Coba aktifkan ulang.";
+      } else if (eventMasuk) {
+        try { localStorage.setItem("kompas_pernah", "1"); } catch {}
+      }
+    }, 1500);
+
   } catch (err) {
     console.error("Kompas gagal:", err);
+    kompasAktif = false;
+    if (el.compassBtn) el.compassBtn.textContent = "Aktifkan Kompas";
     if (el.qiblatAligned) el.qiblatAligned.textContent =
       "Gagal mengaktifkan kompas.";
   }
@@ -658,6 +688,8 @@ function hentikanKompas() {
     handlerOrientasi = null;
   }
   kompasAktif = false;
+  headingSekarang = 0;          // tambahan
+  sudahVibrate = false;         // tambahan
   if (el.compassBtn) el.compassBtn.textContent = "Aktifkan Kompas";
   if (el.qiblatAligned) el.qiblatAligned.textContent = "";
   if (el.compassDial) el.compassDial.style.transform = "rotate(0deg)";
@@ -695,9 +727,13 @@ function go(name) {
 
   if (name !== "kiblat" && kompasAktif) hentikanKompas();
 
-  // Baru: tawarkan aktifkan kompas saat masuk tab kiblat
+  // Saat masuk tab Kiblat: modal jika belum pernah, auto-resume jika sudah
   if (name === "kiblat" && !kompasAktif) {
-    bukaModalKompas();
+    if (localStorage.getItem("kompas_pernah") !== "1") {
+      bukaModalKompas();
+    } else {
+      mulaiKompas(); // dipicu klik tab (user gesture), aman di iOS
+    }
   }
 }
 
@@ -736,5 +772,7 @@ tabs.forEach((t) => t.addEventListener("click", () => go(t.dataset.page)));
 
 // Pause kompas saat halaman tidak terlihat
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden" && kompasAktif) hentikanKompas();
+  if (document.visibilityState === "hidden" && kompasAktif) {
+    hentikanKompas();
+  }
 });
