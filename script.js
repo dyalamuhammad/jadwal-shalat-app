@@ -692,9 +692,46 @@ function go(name) {
   document.querySelectorAll(".page").forEach((p) =>
     p.classList.toggle("hidden", p.id !== "page-" + name)
   );
-  // Hentikan kompas saat pindah ke Jadwal
+
   if (name !== "kiblat" && kompasAktif) hentikanKompas();
+
+  // Baru: tawarkan aktifkan kompas saat masuk tab kiblat
+  if (name === "kiblat" && !kompasAktif) {
+    bukaModalKompas();
+  }
 }
+
+// =====================
+// Modal kompas
+// =====================
+const compassModal = document.getElementById("compassModal");
+const compassModalOk = document.getElementById("compassModalOk");
+const compassModalCancel = document.getElementById("compassModalCancel");
+
+function bukaModalKompas() {
+  if (compassModal) compassModal.hidden = false;
+}
+function tutupModalKompas() {
+  if (compassModal) compassModal.hidden = true;
+}
+
+compassModalOk?.addEventListener("click", async () => {
+  tutupModalKompas();
+  await mulaiKompas(); // fungsi yang sudah ada
+});
+
+compassModalCancel?.addEventListener("click", tutupModalKompas);
+
+compassModal?.querySelectorAll("[data-close]").forEach((el) =>
+  el.addEventListener("click", tutupModalKompas)
+);
+
+// Tutup dengan tombol Escape
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && compassModal && !compassModal.hidden) {
+    tutupModalKompas();
+  }
+});
 tabs.forEach((t) => t.addEventListener("click", () => go(t.dataset.page)));
 
 // Pause kompas saat halaman tidak terlihat

@@ -190,3 +190,54 @@ main.app {
   color: #059669; font-weight: 600; font-size: .9rem; text-align: center;
   min-height: 1.2em;
 }
+
+/* Modal kompas */
+.modal {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal__backdrop {
+  position: absolute; inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+.modal__box {
+  position: relative;
+  background: #fff;
+  border-radius: 20px;
+  padding: 24px 20px 20px;
+  width: 100%; max-width: 340px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
+  animation: popIn 0.28s cubic-bezier(0.34, 1.45, 0.5, 1);
+}
+@media (prefers-color-scheme: dark) {
+  .modal__box { background: #1e293b; color: #e5e7eb; }
+}
+.modal__icon {
+  font-size: 2.4rem; line-height: 1;
+}
+.modal__title {
+  font-size: 1.1rem; font-weight: 700; margin: 0;
+}
+.modal__text {
+  font-size: 0.82rem; color: #64748b; line-height: 1.45; margin: 0;
+}
+@media (prefers-color-scheme: dark) {
+  .modal__text { color: #94a3b8; }
+}
+.modal__actions {
+  display: flex; gap: 8px; width: 100%; margin-top: 8px;
+}
+.modal__actions .btn {
+  flex: 1; padding: 10px 12px; font-size: 0.85rem;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.92) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}

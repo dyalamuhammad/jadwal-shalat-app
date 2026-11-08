@@ -112,15 +112,27 @@
 
         <p class="qibla-aligned" id="qiblatAligned"></p>
 
-        <div class="qibla-actions">
-          <button id="compassBtn" type="button" class="btn">Aktifkan Kompas</button>
-        </div>
-
         <p class="qibla-info" id="qiblatInfo">Jarak ke Ka'bah: —</p>
         <p class="qibla-info">Jauhkan HP dari benda magnetik dan gerakkan membentuk angka 8 untuk kalibrasi.</p>
       </div>
     </section>
   </main>
+
+  <div id="compassModal" class="modal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="compassModalTitle">
+      <div class="modal__icon">🧭</div>
+      <h2 class="modal__title" id="compassModalTitle">Aktifkan Kompas</h2>
+      <p class="modal__text">
+        Untuk menunjukkan arah kiblat secara langsung, kami perlu mengakses sensor kompas HP Anda.
+        Data hanya diproses di perangkat, tidak dikirim ke mana pun.
+      </p>
+      <div class="modal__actions">
+        <button id="compassModalCancel" type="button" class="btn btn--ghost">Nanti saja</button>
+        <button id="compassModalOk" type="button" class="btn">Aktifkan</button>
+      </div>
+    </div>
+  </div>
 
   <nav class="nav" id="nav" role="tablist" aria-label="Navigasi utama">
     <span class="nav__pill" aria-hidden="true"></span>
