@@ -4,6 +4,21 @@
 const API_URL =
   "https://api.aladhan.com/v1/timingsByCity?city=Jakarta&country=Indonesia&method=20";
 
+  // =====================
+  // Arah Kiblat
+  // =====================
+  const KAABA = { lat: 21.4225241, lon: 39.8261818 };
+  const toRad = (d) => (d * Math.PI) / 180;
+  const toDeg = (r) => (r * 180) / Math.PI;
+
+  let koordKiblat = { lat: -6.2088, lon: 106.8456, name: "Jakarta, Indonesia" };
+  let bearingKiblat = 0;
+  let kompasAktif = false;
+  let headingSekarang = 0;
+  let handlerOrientasi = null;
+  let sudahVibrate = false;
+
+
 // Daftar shalat: key dari API -> nama Indonesia
 const PRAYERS = [
   { key: "Fajr", name: "Shubuh" },
@@ -28,6 +43,15 @@ const el = {
   locBtn: document.getElementById("locBtn"),
   locStatus: document.getElementById("locStatus"),
   cards: document.getElementById("cards"),
+  // Kiblat
+  kiblatCity: document.getElementById("kiblatCity"),
+  qiblatDeg: document.getElementById("qiblatDeg"),
+  qiblatDir: document.getElementById("qiblatDir"),
+  qiblatInfo: document.getElementById("qiblatInfo"),
+  qiblatAligned: document.getElementById("qiblatAligned"),
+  compassDial: document.getElementById("compassDial"),
+  compassNeedle: document.getElementById("compassNeedle"),
+  compassBtn: document.getElementById("compassBtn"),
 };
 
 const LOC_KEY = "shalat_loc";
@@ -35,6 +59,7 @@ const LOC_KEY = "shalat_loc";
 function saveLocation(loc) {
   try { localStorage.setItem(LOC_KEY, JSON.stringify(loc)); } catch {}
 }
+
 
 function loadLocation() {
   try {
@@ -283,6 +308,8 @@ function initGeolocation() {
           el.cityLabel.textContent = name;
           // Simpan lokasi + nama kota
           saveLocation({ lat: latitude, lon: longitude, name });
+          perbaruiKiblat(latitude, longitude, name);
+
         });
         
       },
@@ -308,6 +335,7 @@ function restoreLocation() {
   el.cityLabel.textContent = loc.name || "Lokasi tersimpan";
   el.locBtn.hidden = true;
   fetchPrayerTimes({ type: "coords", lat: loc.lat, lon: loc.lon });
+  perbaruiKiblat(loc.lat, loc.lon, loc.name);
   return true;
 }
 
@@ -367,6 +395,8 @@ initGeolocation();
 if (!restoreLocation()) {
   fetchPrayerTimes();
 }
+
+renderKiblat(); // default Jakarta
 
 // Daftarkan Service Worker (hanya jika browser mendukung)
 if ("serviceWorker" in navigator) {
@@ -498,4 +528,176 @@ if (isIOS && !isStandalone) {
 // Tutup hanya untuk sesi ini
 iosBannerClose.addEventListener("click", () => {
   iosBanner.hidden = true;
+});
+
+
+/** Hitung bearing (derajat dari utara, searah jam) ke Ka'bah */
+function hitungKiblat(lat, lon) {
+  const φ1 = toRad(lat);
+  const φ2 = toRad(KAABA.lat);
+  const Δλ = toRad(KAABA.lon - lon);
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+/** Hitung jarak haversine (km) */
+function hitungJarak(lat, lon) {
+  const R = 6371;
+  const dLat = toRad(KAABA.lat - lat);
+  const dLon = toRad(KAABA.lon - lon);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat)) * Math.cos(toRad(KAABA.lat)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Nama mata angin bahasa Indonesia */
+function mataAngin(deg) {
+  const dirs = ["Utara", "Timur Laut", "Timur", "Tenggara", "Selatan", "Barat Daya", "Barat", "Barat Laut"];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+/** Render tampilan statis kiblat (angka, jarak, jarum tanpa heading) */
+function renderKiblat() {
+  bearingKiblat = hitungKiblat(koordKiblat.lat, koordKiblat.lon);
+  const jarak = hitungJarak(koordKiblat.lat, koordKiblat.lon);
+
+  if (el.kiblatCity) el.kiblatCity.textContent = koordKiblat.name;
+  if (el.qiblatDeg) el.qiblatDeg.textContent = Math.round(bearingKiblat) + "°";
+  if (el.qiblatDir) el.qiblatDir.textContent = mataAngin(bearingKiblat);
+  if (el.qiblatInfo) {
+    el.qiblatInfo.textContent =
+      `Jarak ke Ka'bah: ${jarak.toLocaleString("id-ID", { maximumFractionDigits: 0 })} km`;
+  }
+  if (el.compassNeedle && !kompasAktif) {
+    el.compassNeedle.style.transform = `rotate(${bearingKiblat}deg)`;
+  }
+}
+
+/** Haluskan heading dengan low-pass filter + cegah lompatan 359->0 */
+function halusHeading(prev, next) {
+  let diff = next - prev;
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+  return prev + diff * 0.15;
+}
+
+/** Handler deviceorientation, dipakai Android & iOS */
+function buatHandlerOrientasi(isIOS) {
+  return (e) => {
+    let heading = null;
+    if (isIOS && typeof e.webkitCompassHeading === "number") {
+      heading = e.webkitCompassHeading;
+    } else if (typeof e.alpha === "number") {
+      heading = 360 - e.alpha;
+    }
+    if (heading == null) return;
+
+    headingSekarang = halusHeading(headingSekarang, heading);
+    if (el.compassDial) {
+      el.compassDial.style.transform = `rotate(${-headingSekarang}deg)`;
+    }
+    if (el.compassNeedle) {
+      el.compassNeedle.style.transform = `rotate(${bearingKiblat - headingSekarang}deg)`;
+    }
+
+    // Cek apakah menghadap kiblat (selisih ≤ 3°)
+    let selisih = Math.abs(((bearingKiblat - headingSekarang + 540) % 360) - 180);
+    selisih = 180 - selisih;
+    const aligned = selisih <= 3;
+    el.compassNeedle?.classList.toggle("is-aligned", aligned);
+    if (el.qiblatAligned) {
+      el.qiblatAligned.textContent = aligned ? "Anda menghadap kiblat" : "";
+    }
+    if (aligned && !sudahVibrate) {
+      if (navigator.vibrate) navigator.vibrate(50);
+      sudahVibrate = true;
+    }
+    if (!aligned) sudahVibrate = false;
+  };
+}
+
+/** Aktifkan kompas (minta izin iOS dulu) */
+async function mulaiKompas() {
+  if (kompasAktif) { hentikanKompas(); return; }
+  if (!("DeviceOrientationEvent" in window)) {
+    if (el.qiblatAligned) el.qiblatAligned.textContent =
+      "Sensor kompas tidak tersedia. Gunakan kompas fisik dan hadap ke " +
+      Math.round(bearingKiblat) + "° dari utara.";
+    return;
+  }
+  try {
+    if (typeof DeviceOrientationEvent.requestPermission === "function") {
+      const izin = await DeviceOrientationEvent.requestPermission();
+      if (izin !== "granted") {
+        if (el.qiblatAligned) el.qiblatAligned.textContent =
+          "Izin kompas ditolak. Hadap ke " + Math.round(bearingKiblat) + "° dari utara.";
+        return;
+      }
+    }
+    const isIOS = typeof DeviceOrientationEvent.requestPermission === "function";
+    handlerOrientasi = buatHandlerOrientasi(isIOS);
+    window.addEventListener("deviceorientationabsolute", handlerOrientasi, true);
+    window.addEventListener("deviceorientation", handlerOrientasi, true);
+    kompasAktif = true;
+    if (el.compassBtn) el.compassBtn.textContent = "Matikan Kompas";
+    if (el.qiblatAligned) el.qiblatAligned.textContent = "";
+  } catch (err) {
+    console.error("Kompas gagal:", err);
+    if (el.qiblatAligned) el.qiblatAligned.textContent =
+      "Gagal mengaktifkan kompas.";
+  }
+}
+
+/** Hentikan kompas (hemat baterai) */
+function hentikanKompas() {
+  if (handlerOrientasi) {
+    window.removeEventListener("deviceorientationabsolute", handlerOrientasi, true);
+    window.removeEventListener("deviceorientation", handlerOrientasi, true);
+    handlerOrientasi = null;
+  }
+  kompasAktif = false;
+  if (el.compassBtn) el.compassBtn.textContent = "Aktifkan Kompas";
+  if (el.qiblatAligned) el.qiblatAligned.textContent = "";
+  if (el.compassDial) el.compassDial.style.transform = "rotate(0deg)";
+  renderKiblat();
+}
+
+el.compassBtn?.addEventListener("click", mulaiKompas);
+
+// Perbarui kiblat saat koordinat berubah
+function perbaruiKiblat(lat, lon, name) {
+  koordKiblat = { lat, lon, name: name || "Lokasi Anda" };
+  renderKiblat();
+}
+
+// Sinkron dengan lokasi yang dipakai jadwal shalat:
+// panggil di setiap tempat yang mengubah `koordLokasi` (lihat bagian 5)
+
+// =====================
+// Navigasi tab
+// =====================
+const nav = document.getElementById("nav");
+const tabs = nav ? [...nav.querySelectorAll(".nav__item")] : [];
+let halamanAktif = "jadwal";
+
+function go(name) {
+  halamanAktif = name;
+  tabs.forEach((t, i) => {
+    const on = t.dataset.page === name;
+    t.setAttribute("aria-selected", on);
+    if (on) nav.style.setProperty("--i", i);
+  });
+  document.querySelectorAll(".page").forEach((p) =>
+    p.classList.toggle("hidden", p.id !== "page-" + name)
+  );
+  // Hentikan kompas saat pindah ke Jadwal
+  if (name !== "kiblat" && kompasAktif) hentikanKompas();
+}
+tabs.forEach((t) => t.addEventListener("click", () => go(t.dataset.page)));
+
+// Pause kompas saat halaman tidak terlihat
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && kompasAktif) hentikanKompas();
 });
