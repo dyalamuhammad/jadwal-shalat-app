@@ -54,6 +54,31 @@ const el = {
   compassBtn: document.getElementById("compassBtn"),
 };
 
+let wakeLock = null;
+
+/** Minta layar tetap menyala (jika didukung) */
+async function mintaWakeLock() {
+  if (!("wakeLock" in navigator)) return;
+  if (wakeLock) return; // sudah aktif
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    // Lepas otomatis saat halaman hidden — reset referensi
+    wakeLock.addEventListener("release", () => {
+      wakeLock = null;
+    });
+  } catch (err) {
+    // Sering terjadi: izin ditolak / bukan user gesture. Cukup abaikan.
+    console.warn("Wake lock gagal:", err);
+  }
+}
+
+/** Lepas wake lock (layar boleh tidur lagi) */
+async function lepasWakeLock() {
+  if (!wakeLock) return;
+  try { await wakeLock.release(); } catch {}
+  wakeLock = null;
+}
+
 const LOC_KEY = "shalat_loc";
 
 function saveLocation(loc) {
@@ -605,6 +630,7 @@ function buatHandlerOrientasi(isIOS) {
     // Cek apakah menghadap kiblat (selisih ≤ 3°)
     let selisih = Math.abs(((bearingKiblat - headingSekarang + 540) % 360) - 180);
     selisih = 180 - selisih;
+    selisih = Math.abs(180 - selisih);
     const aligned = selisih <= 3;
     el.compassNeedle?.classList.toggle("is-aligned", aligned);
     if (el.qiblatAligned) {
@@ -657,6 +683,7 @@ async function mulaiKompas() {
     }
 
     kompasAktif = true;
+    mintaWakeLock();
     if (el.compassBtn) el.compassBtn.textContent = "Matikan Kompas";
     if (el.qiblatAligned) el.qiblatAligned.textContent = "";
 
@@ -774,5 +801,11 @@ tabs.forEach((t) => t.addEventListener("click", () => go(t.dataset.page)));
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden" && kompasAktif) {
     hentikanKompas();
+  } else if (
+    document.visibilityState === "visible" &&
+    halamanAktif === "kiblat" &&
+    kompasAktif
+  ) {
+    mintaWakeLock();
   }
 });
