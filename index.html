@@ -1,162 +1,330 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-  <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="shortcut icon" href="/favicon.ico" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-  <meta name="apple-mobile-web-app-title" content="ShalatYuk" />
-  <link rel="manifest" href="/site.webmanifest" />
-  <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#4f46e5">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jadwal Shalat App</title>
-  <link rel="icon" href="data:,">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'media',
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Poppins', 'system-ui', 'sans-serif'] },
-          colors: { accent: '#4f46e5' }
-        }
-      }
-    };
-  </script>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-</head>
-<body class="font-sans bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex justify-center transition-colors">
-  <main class="w-full max-w-3xl px-4 pt-6 pb-8 sm:pt-10 sm:gap-6">
-    <section id="page-jadwal" class="page flex flex-col gap-5">
-      <!-- Header -->
-      <header class="text-center flex flex-col gap-1">
-        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">Jadwal Shalat</h1>
-        <p class="text-indigo-600 dark:text-indigo-400 font-medium text-sm sm:text-base" id="cityLabel">Jakarta, Indonesia</p>
-        <div class="mt-2 flex flex-col items-center gap-1.5">
-          <button id="locBtn" type="button" hidden
-            class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 border border-indigo-600 dark:border-indigo-400 rounded-full px-3.5 py-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 active:scale-95 transition">
-            📍 Gunakan Lokasi Saya
-          </button>
-          <span id="locStatus" class="text-[0.72rem] text-slate-500 dark:text-slate-400 min-h-[1em]"></span>
-        </div>
-        <div class="mt-2 flex flex-col gap-0.5" id="dates">
-          <span class="text-xs sm:text-sm text-slate-500 dark:text-slate-400" id="dateMasehi">Memuat tanggal…</span>
-          <span class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 italic" id="dateHijri"></span>
-        </div>
-      </header>
-
-      <!-- Loading -->
-      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm p-8 flex flex-col items-center gap-3 text-slate-500 dark:text-slate-400" id="loading">
-        <div class="w-9 h-9 rounded-full border-[3px] border-slate-200 dark:border-slate-700 border-t-indigo-600 dark:border-t-indigo-400 animate-spin"></div>
-        <p class="text-sm">Mengambil jadwal shalat…</p>
-      </div>
-
-      <!-- Error -->
-      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm p-8 flex flex-col items-center gap-3 text-center" id="error" hidden>
-        <p class="text-3xl">⚠️</p>
-        <p class="text-red-600 dark:text-red-400 font-medium text-sm" id="errorMessage">Gagal memuat jadwal shalat. Periksa koneksi internet Anda.</p>
-        <button class="text-sm font-semibold bg-indigo-600 text-white rounded-lg px-5 py-2.5 hover:opacity-90 active:scale-95 transition" id="retryBtn" type="button">Coba Lagi</button>
-      </div>
-
-      <!-- Countdown -->
-      <section class="bg-indigo-600 text-white rounded-2xl p-5 text-center shadow-lg shadow-indigo-500/25 flex flex-col gap-1" id="countdownSection" hidden>
-        <p class="text-sm opacity-90">Menuju <strong id="nextName">—</strong></p>
-        <p class="text-3xl sm:text-4xl font-bold tabular-nums tracking-wider" id="countdownTimer">--:--:--</p>
-      </section>
-
-      <!-- Cards -->
-      <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3" id="cards" hidden aria-label="Waktu shalat"></section>
-
-      <button id="notifBtn" class="notif" type="button" hidden>
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
-            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-        </svg>
-      </button>
-      <p id="notifStatus" class="notif-status"></p>
-
-      <footer class="text-center text-xs text-slate-400 dark:text-slate-500 mt-2">
-        <p>Sumber data: AlAdhan API</p>
-        <p class="mt-1 text-[0.65rem] text-slate-400 dark:text-slate-500">
-          Nama lokasi © OpenStreetMap contributors
-        </p>
-      </footer>
-    </section>
-    <section id="page-kiblat" class="page hidden">
-      <header class="text-center flex flex-col gap-1">
-        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">Arah Kiblat</h1>
-        <p class="text-indigo-600 dark:text-indigo-400 font-medium text-sm sm:text-base" id="kiblatCity">Jakarta, Indonesia</p>
-      </header>
-
-      <div class="qibla-card">
-        <p class="qibla-heading">Arah kiblat dari utara sejati</p>
-        <p class="qibla-deg" id="qiblatDeg">—</p>
-        <p class="qibla-dir" id="qiblatDir">—</p>
-
-        <div class="compass" id="compass">
-          <div class="compass__facing"></div>
-          <div class="compass__dial" id="compassDial">
-            <span class="compass__mark compass__mark--n">U</span>
-            <span class="compass__mark compass__mark--e">T</span>
-            <span class="compass__mark compass__mark--s">S</span>
-            <span class="compass__mark compass__mark--w">B</span>
+  <head>
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="ShalatYuk" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jadwal Shalat App</title>
+    <link rel="icon" href="data:," />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "media",
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Poppins", "system-ui", "sans-serif"] },
+            colors: { accent: "#4f46e5" },
+          },
+        },
+      };
+    </script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,500,0,0"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body
+    class="font-sans bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex justify-center transition-colors"
+  >
+    <main class="w-full max-w-3xl px-4 pt-6 pb-8 sm:pt-10 sm:gap-6">
+      <section id="page-jadwal" class="page flex flex-col gap-5">
+        <!-- Header -->
+        <header class="text-center flex flex-col gap-1">
+          <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">
+            Jadwal Shalat
+          </h1>
+          <p
+            class="text-indigo-600 dark:text-indigo-400 font-medium text-sm sm:text-base"
+            id="cityLabel"
+          >
+            Jakarta, Indonesia
+          </p>
+          <div class="mt-2 flex flex-col items-center gap-1.5">
+            <button
+              id="relocBtn"
+              type="button"
+              hidden
+              class="text-xs font-semibold text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-600 rounded-full px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition"
+            >
+              <span class="material-symbols-rounded" style="font-size: 16px"
+                >refresh</span
+              >
+              Perbarui Lokasi
+            </button>
+            <button
+              id="locBtn"
+              type="button"
+              hidden
+              class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 border border-indigo-600 dark:border-indigo-400 rounded-full px-3.5 py-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 active:scale-95 transition"
+            >
+              <span class="material-symbols-rounded" style="font-size: 16px"
+                >my_location</span
+              >
+              Gunakan Lokasi Saya
+            </button>
+            <span
+              id="locStatus"
+              class="text-[0.72rem] text-slate-500 dark:text-slate-400 min-h-[1em]"
+            ></span>
           </div>
-          <div class="compass__needle" id="compassNeedle"></div>
+          <div class="mt-2 flex flex-col gap-0.5" id="dates">
+            <span
+              class="text-xs sm:text-sm text-slate-500 dark:text-slate-400"
+              id="dateMasehi"
+              >Memuat tanggal…</span
+            >
+            <span
+              class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 italic"
+              id="dateHijri"
+            ></span>
+          </div>
+        </header>
+
+        <!-- Loading -->
+        <div
+          class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm p-8 flex flex-col items-center gap-3 text-slate-500 dark:text-slate-400"
+          id="loading"
+        >
+          <div
+            class="w-9 h-9 rounded-full border-[3px] border-slate-200 dark:border-slate-700 border-t-indigo-600 dark:border-t-indigo-400 animate-spin"
+          ></div>
+          <p class="text-sm">Mengambil jadwal shalat…</p>
         </div>
 
-        <p class="qibla-aligned" id="qiblatAligned"></p>
+        <!-- Error -->
+        <div
+          class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm p-8 flex flex-col items-center gap-3 text-center"
+          id="error"
+          hidden
+        >
+          <p class="text-3xl">⚠️</p>
+          <p
+            class="text-red-600 dark:text-red-400 font-medium text-sm"
+            id="errorMessage"
+          >
+            Gagal memuat jadwal shalat. Periksa koneksi internet Anda.
+          </p>
+          <button
+            class="text-sm font-semibold bg-indigo-600 text-white rounded-lg px-5 py-2.5 hover:opacity-90 active:scale-95 transition"
+            id="retryBtn"
+            type="button"
+          >
+            Coba Lagi
+          </button>
+        </div>
 
-        <p class="qibla-info" id="qiblatInfo">Jarak ke Ka'bah: —</p>
-        <p class="qibla-info">Jauhkan HP dari benda magnetik dan gerakkan membentuk angka 8 untuk kalibrasi.</p>
-      </div>
-    </section>
-  </main>
+        <!-- Countdown -->
+        <section
+          class="bg-indigo-600 text-white rounded-2xl p-5 text-center shadow-lg shadow-indigo-500/25 flex flex-col gap-1"
+          id="countdownSection"
+          hidden
+        >
+          <p class="text-sm opacity-90">
+            Menuju <strong id="nextName">—</strong>
+          </p>
+          <p
+            class="text-3xl sm:text-4xl font-bold tabular-nums tracking-wider"
+            id="countdownTimer"
+          >
+            --:--:--
+          </p>
+        </section>
 
-  <div id="compassModal" class="modal" hidden>
-    <div class="modal__backdrop" data-close></div>
-    <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="compassModalTitle">
-      <div class="modal__icon">🧭</div>
-      <h2 class="modal__title" id="compassModalTitle">Aktifkan Kompas</h2>
-      <p class="modal__text">
-        Untuk menunjukkan arah kiblat secara langsung, kami perlu mengakses sensor kompas HP Anda.
-        Data hanya diproses di perangkat, tidak dikirim ke mana pun.
-      </p>
-      <div class="modal__actions">
-        <button id="compassModalCancel" type="button" class="btn btn--ghost">Nanti saja</button>
-        <button id="compassModalOk" type="button" class="btn">Aktifkan</button>
+        <!-- Cards -->
+        <section
+          class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3"
+          id="cards"
+          hidden
+          aria-label="Waktu shalat"
+        ></section>
+
+        <button id="notifBtn" class="notif" type="button" hidden>
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+          </svg>
+        </button>
+        <p id="notifStatus" class="notif-status"></p>
+
+        <footer
+          class="text-center text-xs text-slate-400 dark:text-slate-500 mt-2"
+        >
+          <p>Sumber data: AlAdhan API</p>
+          <p class="mt-1 text-[0.65rem] text-slate-400 dark:text-slate-500">
+            Nama lokasi © OpenStreetMap contributors
+          </p>
+        </footer>
+      </section>
+      <section id="page-kiblat" class="page hidden">
+        <header class="text-center flex flex-col gap-1">
+          <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">
+            Arah Kiblat
+          </h1>
+          <p
+            class="text-indigo-600 dark:text-indigo-400 font-medium text-sm sm:text-base"
+            id="kiblatCity"
+          >
+            Jakarta, Indonesia
+          </p>
+          <div class="mt-2 flex flex-col items-center gap-1.5">
+            <button
+              id="relocBtnKiblat"
+              type="button"
+              class="text-xs font-semibold text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-600 rounded-full px-3.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition"
+            >
+              <span class="material-symbols-rounded" style="font-size: 16px"
+                >refresh</span
+              >
+              Perbarui Lokasi
+            </button>
+          </div>
+        </header>
+
+        <div class="qibla-card">
+          <p class="qibla-heading">Arah kiblat dari utara sejati</p>
+          <p class="qibla-deg" id="qiblatDeg">—</p>
+          <p class="qibla-dir" id="qiblatDir">—</p>
+
+          <div class="compass" id="compass">
+            <div class="compass__facing"></div>
+            <div class="compass__dial" id="compassDial">
+              <span class="compass__mark compass__mark--n">U</span>
+              <span class="compass__mark compass__mark--e">T</span>
+              <span class="compass__mark compass__mark--s">S</span>
+              <span class="compass__mark compass__mark--w">B</span>
+            </div>
+            <div class="compass__needle" id="compassNeedle"></div>
+          </div>
+
+          <p class="qibla-aligned" id="qiblatAligned"></p>
+
+          <p class="qibla-info" id="qiblatInfo">Jarak ke Ka'bah: —</p>
+          <p class="qibla-info">
+            Jauhkan HP dari benda magnetik dan gerakkan membentuk angka 8 untuk
+            kalibrasi.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <div id="compassModal" class="modal" hidden>
+      <div class="modal__backdrop" data-close></div>
+      <div
+        class="modal__box"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="compassModalTitle"
+      >
+        <div class="modal__icon">🧭</div>
+        <h2 class="modal__title" id="compassModalTitle">Aktifkan Kompas</h2>
+        <p class="modal__text">
+          Untuk menunjukkan arah kiblat secara langsung, kami perlu mengakses
+          sensor kompas HP Anda. Data hanya diproses di perangkat, tidak dikirim
+          ke mana pun.
+        </p>
+        <div class="modal__actions">
+          <button id="compassModalCancel" type="button" class="btn btn--ghost">
+            Nanti saja
+          </button>
+          <button id="compassModalOk" type="button" class="btn">
+            Aktifkan
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <nav class="nav" id="nav" role="tablist" aria-label="Navigasi utama">
-    <span class="nav__pill" aria-hidden="true"></span>
-    <button class="nav__item" role="tab" aria-selected="true" data-page="jadwal" type="button">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-      Jadwal
-    </button>
-    <button class="nav__item" role="tab" aria-selected="false" data-page="kiblat" type="button">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>
-      Kiblat
-    </button>
-  </nav>
+    <nav class="nav" id="nav" role="tablist" aria-label="Navigasi utama">
+      <span class="nav__pill" aria-hidden="true"></span>
+      <button
+        class="nav__item"
+        role="tab"
+        aria-selected="true"
+        data-page="jadwal"
+        type="button"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.9"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+        Jadwal
+      </button>
+      <button
+        class="nav__item"
+        role="tab"
+        aria-selected="false"
+        data-page="kiblat"
+        type="button"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.9"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="m15.5 8.5-2 5-5 2 2-5z" />
+        </svg>
+        Kiblat
+      </button>
+    </nav>
 
-  <div id="iosBanner" class="ios-banner" hidden>
-    <p>
-      Pasang di layar utama: ketuk
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 3v12M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>
-      </svg>
-      lalu <strong>Tambah ke Layar Utama</strong>
-    </p>
-    <button id="iosBannerClose" type="button" aria-label="Tutup">✕</button>
-  </div>
-  <script src="script.js"></script>
-</body>
+    <div id="iosBanner" class="ios-banner" hidden>
+      <p>
+        Pasang di layar utama: ketuk
+        <svg
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 3v12M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"
+          />
+        </svg>
+        lalu <strong>Tambah ke Layar Utama</strong>
+      </p>
+      <button id="iosBannerClose" type="button" aria-label="Tutup">✕</button>
+    </div>
+    <script src="script.js"></script>
+  </body>
 </html>

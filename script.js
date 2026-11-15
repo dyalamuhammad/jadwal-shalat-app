@@ -4,20 +4,19 @@
 const API_URL =
   "https://api.aladhan.com/v1/timingsByCity?city=Jakarta&country=Indonesia&method=20";
 
-  // =====================
-  // Arah Kiblat
-  // =====================
-  const KAABA = { lat: 21.4225241, lon: 39.8261818 };
-  const toRad = (d) => (d * Math.PI) / 180;
-  const toDeg = (r) => (r * 180) / Math.PI;
+// =====================
+// Arah Kiblat
+// =====================
+const KAABA = { lat: 21.4225241, lon: 39.8261818 };
+const toRad = (d) => (d * Math.PI) / 180;
+const toDeg = (r) => (r * 180) / Math.PI;
 
-  let koordKiblat = { lat: -6.2088, lon: 106.8456, name: "Jakarta, Indonesia" };
-  let bearingKiblat = 0;
-  let kompasAktif = false;
-  let headingSekarang = 0;
-  let handlerOrientasi = null;
-  let sudahVibrate = false;
-
+let koordKiblat = { lat: -6.2088, lon: 106.8456, name: "Jakarta, Indonesia" };
+let bearingKiblat = 0;
+let kompasAktif = false;
+let headingSekarang = 0;
+let handlerOrientasi = null;
+let sudahVibrate = false;
 
 // Daftar shalat: key dari API -> nama Indonesia
 const PRAYERS = [
@@ -52,6 +51,9 @@ const el = {
   compassDial: document.getElementById("compassDial"),
   compassNeedle: document.getElementById("compassNeedle"),
   compassBtn: document.getElementById("compassBtn"),
+
+  relocBtn: document.getElementById("relocBtn"),
+  relocBtnKiblat: document.getElementById("relocBtnKiblat"),
 };
 
 let wakeLock = null;
@@ -75,26 +77,33 @@ async function mintaWakeLock() {
 /** Lepas wake lock (layar boleh tidur lagi) */
 async function lepasWakeLock() {
   if (!wakeLock) return;
-  try { await wakeLock.release(); } catch {}
+  try {
+    await wakeLock.release();
+  } catch {}
   wakeLock = null;
 }
 
 const LOC_KEY = "shalat_loc";
 
 function saveLocation(loc) {
-  try { localStorage.setItem(LOC_KEY, JSON.stringify(loc)); } catch {}
+  try {
+    localStorage.setItem(LOC_KEY, JSON.stringify(loc));
+  } catch {}
 }
-
 
 function loadLocation() {
   try {
     const raw = localStorage.getItem(LOC_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function clearLocation() {
-  try { localStorage.removeItem(LOC_KEY); } catch {}
+  try {
+    localStorage.removeItem(LOC_KEY);
+  } catch {}
 }
 
 // State global
@@ -175,9 +184,15 @@ function highlightNextCard() {
     c.classList.toggle("shadow-indigo-500/25", isNext);
     c.classList.toggle("-translate-y-0.5", isNext);
     c.querySelector(".card__name").classList.toggle("text-indigo-600", isNext);
-    c.querySelector(".card__name").classList.toggle("dark:text-indigo-400", isNext);
+    c.querySelector(".card__name").classList.toggle(
+      "dark:text-indigo-400",
+      isNext,
+    );
     c.querySelector(".card__time").classList.toggle("text-indigo-600", isNext);
-    c.querySelector(".card__time").classList.toggle("dark:text-indigo-400", isNext);
+    c.querySelector(".card__time").classList.toggle(
+      "dark:text-indigo-400",
+      isNext,
+    );
   });
 }
 
@@ -241,15 +256,15 @@ function stopCountdown() {
 
 function showLoading() {
   el.loading.hidden = false;
-  el.error.hidden = true;        // <-- tambahan
+  el.error.hidden = true; // <-- tambahan
   el.cards.hidden = true;
   el.countdownSection.hidden = true;
   el.dates.hidden = true;
 }
 
-function showError(msg){
+function showError(msg) {
   stopCountdown();
-  el.loading.hidden = true;   // wajib
+  el.loading.hidden = true; // wajib
   el.cards.hidden = true;
   el.countdownSection.hidden = true;
   el.error.hidden = false;
@@ -257,8 +272,8 @@ function showError(msg){
 }
 
 function showContent() {
-  el.loading.hidden = true;      // sudah ada, pastikan
-  el.error.hidden = true;        // sudah ada
+  el.loading.hidden = true; // sudah ada, pastikan
+  el.error.hidden = true; // sudah ada
   el.cards.hidden = false;
   el.dates.hidden = false;
 }
@@ -267,15 +282,19 @@ function showContent() {
 // Fetch data
 // =====================
 
-async function fetchPrayerTimes(loc = { type: "city", city: "Jakarta", country: "Indonesia" }) {
+async function fetchPrayerTimes(
+  loc = { type: "city", city: "Jakarta", country: "Indonesia" },
+) {
   showLoading();
   try {
     let url;
     if (loc.type === "coords") {
       const d = new Date();
       const dateStr =
-        String(d.getDate()).padStart(2, "0") + "-" +
-        String(d.getMonth() + 1).padStart(2, "0") + "-" +
+        String(d.getDate()).padStart(2, "0") +
+        "-" +
+        String(d.getMonth() + 1).padStart(2, "0") +
+        "-" +
         d.getFullYear();
       url = `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${loc.lat}&longitude=${loc.lon}&method=20`;
     } else {
@@ -305,52 +324,78 @@ async function fetchPrayerTimes(loc = { type: "city", city: "Jakarta", country: 
     showContent();
   } catch (err) {
     console.error("Gagal fetch jadwal:", err);
-    showError("Maaf, jadwal shalat gagal dimuat. Periksa koneksi lalu coba lagi.");
+    showError(
+      "Maaf, jadwal shalat gagal dimuat. Periksa koneksi lalu coba lagi.",
+    );
   }
 }
 
 // =====================
 // Deteksi lokasi (tampilan saja)
 // =====================
+let sedangDeteksi = false;
+
+function mintaLokasi() {
+  if (sedangDeteksi) return;
+  if (!("geolocation" in navigator)) return;
+
+  sedangDeteksi = true;
+  if (el.locBtn) el.locBtn.disabled = true;
+  if (el.relocBtn) el.relocBtn.disabled = true;
+  if (el.relocBtnKiblat) el.relocBtnKiblat.disabled = true;
+  el.locStatus.textContent = "Mendeteksi lokasi…";
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude, longitude } = pos.coords;
+      el.cityLabel.textContent = "Mendeteksi kota…";
+      el.locStatus.textContent = "";
+      el.locBtn.hidden = true;
+      el.relocBtn.hidden = true;
+
+      fetchPrayerTimes({ type: "coords", lat: latitude, lon: longitude });
+
+      reverseGeocode(latitude, longitude).then((name) => {
+        el.cityLabel.textContent = name;
+        saveLocation({ lat: latitude, lon: longitude, name });
+        perbaruiKiblat(latitude, longitude, name);
+        sedangDeteksi = false;
+        if (el.relocBtn) {
+          el.relocBtn.disabled = false;
+          el.relocBtn.hidden = false;
+        }
+        if (el.relocBtnKiblat) el.relocBtnKiblat.disabled = false;
+      });
+    },
+    (err) => {
+      sedangDeteksi = false;
+      el.locBtn.disabled = false;
+      if (el.relocBtn) {
+        el.relocBtn.disabled = false;
+        el.relocBtn.hidden = false;
+      }
+      if (el.relocBtnKiblat) el.relocBtnKiblat.disabled = false;
+
+      if (err.code === 1) {
+        el.locStatus.textContent =
+          "Izin lokasi ditolak. Tetap pakai lokasi tersimpan.";
+      } else if (err.code === 3) {
+        el.locStatus.textContent = "Deteksi lokasi habis waktu. Coba lagi.";
+      } else {
+        el.locStatus.textContent = "Gagal mendeteksi lokasi.";
+      }
+    },
+    { timeout: 10000, maximumAge: 0 }, // maximumAge: 0 = jangan pakai cache
+  );
+}
+
 function initGeolocation() {
   if (!("geolocation" in navigator)) return;
   if (el.locBtn) el.locBtn.hidden = false;
 
-  el.locBtn?.addEventListener("click", () => {
-    el.locBtn.disabled = true;
-    el.locStatus.textContent = "Mendeteksi lokasi…";
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        el.cityLabel.textContent = "Mendeteksi kota…";
-        el.locStatus.textContent = "";
-        el.locBtn.hidden = true;
-
-        fetchPrayerTimes({ type: "coords", lat: latitude, lon: longitude });
-
-        reverseGeocode(latitude, longitude).then((name) => {
-          el.cityLabel.textContent = name;
-          // Simpan lokasi + nama kota
-          saveLocation({ lat: latitude, lon: longitude, name });
-          perbaruiKiblat(latitude, longitude, name);
-
-        });
-        
-      },
-      (err) => {
-        el.locBtn.disabled = false;
-        if (err.code === 1) {
-          el.locStatus.textContent = "Izin lokasi ditolak. Tetap pakai Jakarta.";
-        } else if (err.code === 3) {
-          el.locStatus.textContent = "Deteksi lokasi habis waktu. Coba lagi.";
-        } else {
-          el.locStatus.textContent = "Gagal mendeteksi lokasi.";
-        }
-      },
-      { timeout: 10000, maximumAge: 300000 }
-    );
-  });
+  el.locBtn?.addEventListener("click", mintaLokasi);
+  el.relocBtn?.addEventListener("click", mintaLokasi);
+  el.relocBtnKiblat?.addEventListener("click", mintaLokasi);
 }
 
 function restoreLocation() {
@@ -359,11 +404,11 @@ function restoreLocation() {
 
   el.cityLabel.textContent = loc.name || "Lokasi tersimpan";
   el.locBtn.hidden = true;
+  if (el.relocBtn) el.relocBtn.hidden = false;
   fetchPrayerTimes({ type: "coords", lat: loc.lat, lon: loc.lon });
   perbaruiKiblat(loc.lat, loc.lon, loc.name);
   return true;
 }
-
 
 // =====================
 // Reverse geocoding (koordinat -> nama kota)
@@ -372,7 +417,7 @@ async function reverseGeocode(lat, lon) {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1&accept-language=id`;
     const res = await fetch(url, {
-      headers: { "Accept": "application/json" },
+      headers: { Accept: "application/json" },
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
 
@@ -438,7 +483,8 @@ if ("serviceWorker" in navigator) {
 // =====================
 
 // Ganti dengan Public Key VAPID Anda (dari Step 1)
-const VAPID_PUBLIC_KEY = "BLs9LK-aoISs6Wxkb3MlvhLjd89pdgU1xlu9VDE8y4OLCTavYdvI47jyBbo9TVUOv6Ua4IGMCRlv_Nl-HDNNJak";
+const VAPID_PUBLIC_KEY =
+  "BLs9LK-aoISs6Wxkb3MlvhLjd89pdgU1xlu9VDE8y4OLCTavYdvI47jyBbo9TVUOv6Ua4IGMCRlv_Nl-HDNNJak";
 
 // Konversi base64 VAPID key ke Uint8Array (wajib untuk subscribe)
 function urlBase64ToUint8Array(base64String) {
@@ -469,19 +515,23 @@ function setNotifState(state) {
 
 // Deteksi dukungan push
 const pushSupported =
-  "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  "serviceWorker" in navigator &&
+  "PushManager" in window &&
+  "Notification" in window;
 
 if (!pushSupported) {
-  if (notifStatus) notifStatus.textContent = "Browser ini tidak mendukung notifikasi push.";
+  if (notifStatus)
+    notifStatus.textContent = "Browser ini tidak mendukung notifikasi push.";
 } else {
   notifBtn.hidden = false;
 
   // Cek status izin saat ini
   if (Notification.permission === "granted") {
-    setNotifState("on")
+    setNotifState("on");
   } else if (Notification.permission === "denied") {
-    setNotifState("off")
-    notifStatus.textContent = "Notifikasi diblokir. Ubah di pengaturan browser.";
+    setNotifState("off");
+    notifStatus.textContent =
+      "Notifikasi diblokir. Ubah di pengaturan browser.";
     notifBtn.hidden = true;
   }
 }
@@ -518,12 +568,12 @@ notifBtn?.addEventListener("click", async () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-      ...sub,                              // endpoint, keys, dll
-      lat: savedLoc?.lat ?? null,
-      lon: savedLoc?.lon ?? null,
-      city: savedLoc?.name ?? "Jakarta",
-      tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Jakarta",
-    }),
+        ...sub, // endpoint, keys, dll
+        lat: savedLoc?.lat ?? null,
+        lon: savedLoc?.lon ?? null,
+        city: savedLoc?.name ?? "Jakarta",
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Jakarta",
+      }),
     });
 
     if (!res.ok) throw new Error("Server menolak subscription");
@@ -555,14 +605,14 @@ iosBannerClose.addEventListener("click", () => {
   iosBanner.hidden = true;
 });
 
-
 /** Hitung bearing (derajat dari utara, searah jam) ke Ka'bah */
 function hitungKiblat(lat, lon) {
   const φ1 = toRad(lat);
   const φ2 = toRad(KAABA.lat);
   const Δλ = toRad(KAABA.lon - lon);
   const y = Math.sin(Δλ) * Math.cos(φ2);
-  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  const x =
+    Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
@@ -579,7 +629,16 @@ function hitungJarak(lat, lon) {
 
 /** Nama mata angin bahasa Indonesia */
 function mataAngin(deg) {
-  const dirs = ["Utara", "Timur Laut", "Timur", "Tenggara", "Selatan", "Barat Daya", "Barat", "Barat Laut"];
+  const dirs = [
+    "Utara",
+    "Timur Laut",
+    "Timur",
+    "Tenggara",
+    "Selatan",
+    "Barat Daya",
+    "Barat",
+    "Barat Laut",
+  ];
   return dirs[Math.round(deg / 45) % 8];
 }
 
@@ -592,8 +651,7 @@ function renderKiblat() {
   if (el.qiblatDeg) el.qiblatDeg.textContent = Math.round(bearingKiblat) + "°";
   if (el.qiblatDir) el.qiblatDir.textContent = mataAngin(bearingKiblat);
   if (el.qiblatInfo) {
-    el.qiblatInfo.textContent =
-      `Jarak ke Ka'bah: ${jarak.toLocaleString("id-ID", { maximumFractionDigits: 0 })} km`;
+    el.qiblatInfo.textContent = `Jarak ke Ka'bah: ${jarak.toLocaleString("id-ID", { maximumFractionDigits: 0 })} km`;
   }
   if (el.compassNeedle && !kompasAktif) {
     el.compassNeedle.style.transform = `rotate(${bearingKiblat}deg)`;
@@ -613,7 +671,7 @@ function buatHandlerOrientasi(isIOS) {
   return (e) => {
     let heading = null;
     if (isIOS && typeof e.webkitCompassHeading === "number") {
-  heading = e.webkitCompassHeading;
+      heading = e.webkitCompassHeading;
     } else if (typeof e.alpha === "number") {
       heading = 360 - e.alpha;
     }
@@ -628,7 +686,9 @@ function buatHandlerOrientasi(isIOS) {
     }
 
     // Cek apakah menghadap kiblat (selisih ≤ 3°)
-    let selisih = Math.abs(((bearingKiblat - headingSekarang + 540) % 360) - 180);
+    let selisih = Math.abs(
+      ((bearingKiblat - headingSekarang + 540) % 360) - 180,
+    );
     selisih = 180 - selisih;
     selisih = Math.abs(180 - selisih);
     const aligned = selisih <= 3;
@@ -646,11 +706,16 @@ function buatHandlerOrientasi(isIOS) {
 
 /** Aktifkan kompas (minta izin iOS dulu) */
 async function mulaiKompas() {
-  if (kompasAktif) { hentikanKompas(); return; }
+  if (kompasAktif) {
+    hentikanKompas();
+    return;
+  }
   if (!("DeviceOrientationEvent" in window)) {
-    if (el.qiblatAligned) el.qiblatAligned.textContent =
-      "Sensor kompas tidak tersedia. Gunakan kompas fisik dan hadap ke " +
-      Math.round(bearingKiblat) + "° dari utara.";
+    if (el.qiblatAligned)
+      el.qiblatAligned.textContent =
+        "Sensor kompas tidak tersedia. Gunakan kompas fisik dan hadap ke " +
+        Math.round(bearingKiblat) +
+        "° dari utara.";
     return;
   }
 
@@ -658,13 +723,17 @@ async function mulaiKompas() {
     if (typeof DeviceOrientationEvent.requestPermission === "function") {
       const izin = await DeviceOrientationEvent.requestPermission();
       if (izin !== "granted") {
-        if (el.qiblatAligned) el.qiblatAligned.textContent =
-          "Izin kompas ditolak. Hadap ke " + Math.round(bearingKiblat) + "° dari utara.";
+        if (el.qiblatAligned)
+          el.qiblatAligned.textContent =
+            "Izin kompas ditolak. Hadap ke " +
+            Math.round(bearingKiblat) +
+            "° dari utara.";
         return;
       }
     }
 
-    const isIOS = typeof DeviceOrientationEvent.requestPermission === "function";
+    const isIOS =
+      typeof DeviceOrientationEvent.requestPermission === "function";
 
     // Watchdog: pastikan event benar-benar datang
     let eventMasuk = false;
@@ -678,7 +747,11 @@ async function mulaiKompas() {
     if (isIOS) {
       window.addEventListener("deviceorientation", wrappedHandler, true);
     } else {
-      window.addEventListener("deviceorientationabsolute", wrappedHandler, true);
+      window.addEventListener(
+        "deviceorientationabsolute",
+        wrappedHandler,
+        true,
+      );
       window.addEventListener("deviceorientation", wrappedHandler, true);
     }
 
@@ -691,32 +764,38 @@ async function mulaiKompas() {
     setTimeout(() => {
       if (!eventMasuk && kompasAktif) {
         hentikanKompas();
-        if (el.qiblatAligned) el.qiblatAligned.textContent =
-          "Sensor kompas tidak merespons. Coba aktifkan ulang.";
+        if (el.qiblatAligned)
+          el.qiblatAligned.textContent =
+            "Sensor kompas tidak merespons. Coba aktifkan ulang.";
       } else if (eventMasuk) {
-        try { localStorage.setItem("kompas_pernah", "1"); } catch {}
+        try {
+          localStorage.setItem("kompas_pernah", "1");
+        } catch {}
       }
     }, 1500);
-
   } catch (err) {
     console.error("Kompas gagal:", err);
     kompasAktif = false;
     if (el.compassBtn) el.compassBtn.textContent = "Aktifkan Kompas";
-    if (el.qiblatAligned) el.qiblatAligned.textContent =
-      "Gagal mengaktifkan kompas.";
+    if (el.qiblatAligned)
+      el.qiblatAligned.textContent = "Gagal mengaktifkan kompas.";
   }
 }
 
 /** Hentikan kompas (hemat baterai) */
 function hentikanKompas() {
   if (handlerOrientasi) {
-    window.removeEventListener("deviceorientationabsolute", handlerOrientasi, true);
+    window.removeEventListener(
+      "deviceorientationabsolute",
+      handlerOrientasi,
+      true,
+    );
     window.removeEventListener("deviceorientation", handlerOrientasi, true);
     handlerOrientasi = null;
   }
   kompasAktif = false;
-  headingSekarang = 0;          // tambahan
-  sudahVibrate = false;         // tambahan
+  headingSekarang = 0; // tambahan
+  sudahVibrate = false; // tambahan
   if (el.compassBtn) el.compassBtn.textContent = "Aktifkan Kompas";
   if (el.qiblatAligned) el.qiblatAligned.textContent = "";
   if (el.compassDial) el.compassDial.style.transform = "rotate(0deg)";
@@ -748,9 +827,9 @@ function go(name) {
     t.setAttribute("aria-selected", on);
     if (on) nav.style.setProperty("--i", i);
   });
-  document.querySelectorAll(".page").forEach((p) =>
-    p.classList.toggle("hidden", p.id !== "page-" + name)
-  );
+  document
+    .querySelectorAll(".page")
+    .forEach((p) => p.classList.toggle("hidden", p.id !== "page-" + name));
 
   if (name !== "kiblat" && kompasAktif) hentikanKompas();
 
@@ -785,9 +864,9 @@ compassModalOk?.addEventListener("click", async () => {
 
 compassModalCancel?.addEventListener("click", tutupModalKompas);
 
-compassModal?.querySelectorAll("[data-close]").forEach((el) =>
-  el.addEventListener("click", tutupModalKompas)
-);
+compassModal
+  ?.querySelectorAll("[data-close]")
+  .forEach((el) => el.addEventListener("click", tutupModalKompas));
 
 // Tutup dengan tombol Escape
 document.addEventListener("keydown", (e) => {
